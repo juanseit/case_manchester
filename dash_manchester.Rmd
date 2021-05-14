@@ -1,0 +1,291 @@
+---
+title: "Case - Manchester."
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: cerulean
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(ggtext)
+library(readxl)
+library(gt)
+library(shiny)
+library(plotly)
+options(scipen = 9999)
+man_df <- read_xlsx("C:/Users/User/Downloads/Processo_Seletivo.xlsx")
+medias_man <- man_df %>%
+  filter(!is.na(`Net Total`), !is.na(`Net Renda Fixa`)) %>%
+  group_by(Assessor) %>%
+  summarize(media_rf = `Net Renda Fixa`/`Net Total`, media_rv = `Net Renda Variável`/`Net Total`,
+            media_fii = `Net Fundos Imobiliários`/ `Net Total`, media_fundos = `Net Fundos`/`Net Total`,
+            media_previdencia = `Net Previdência`/`Net Total`, media_caixa = `Net Caixa`/`Net Total`) %>%
+  ungroup()
+
+pal <- function(x) {
+  f_neg <- scales::col_numeric(
+    palette = c("#ff9e81","#ffffff","#3fc1c9"),
+    domain = c(-.2, 0)
+  )
+  f_pos <- scales::col_numeric(
+    palette = c("#3fc1c9","#ffffff", "#ff9e81"),
+    domain = c(0, 0.2)
+  )
+  ifelse(x <= 0, f_neg(x), f_pos(x))
+}
+
+gt_theme_538 <- function(data,...) {
+  data %>%
+    opt_all_caps()  %>%
+    opt_table_font(
+      font = list(
+        google_font("Chivo"),
+        default_fonts()
+      )
+    ) %>%
+    tab_style(
+      style = cell_borders(
+        sides = "bottom", color = "transparent", weight = px(2)
+      ),
+      locations = cells_body(
+        columns = TRUE,
+        # This is a relatively sneaky way of changing the bottom border
+        # Regardless of data size
+        rows = nrow(data$`_data`)
+      )
+    )  %>% 
+    tab_options(
+      column_labels.background.color = "white",
+      table.border.top.width = px(3),
+      table.border.top.color = "transparent",
+      table.border.bottom.color = "transparent",
+      table.border.bottom.width = px(3),
+      column_labels.border.top.width = px(3),
+      column_labels.border.top.color = "transparent",
+      column_labels.border.bottom.width = px(3),
+      column_labels.border.bottom.color = "black",
+      data_row.padding = px(3),
+      source_notes.font.size = 12,
+      table.font.size = 16,
+      heading.align = "left",
+      ...
+    ) 
+}
+```
+
+Relatório de dados.
+===
+
+Rows {data-width=650}
+-----------------------------------------------------------------------
+
+### Nesta tabela são visualizados os dados médios dos clientes de cada assessor da Manchester.
+
+```{r}
+tabela <- medias_man %>%
+  group_by(Assessor) %>%
+  summarize(clientes = n(), total_rf = mean(media_rf), diff_rf = total_rf - .15,
+            total_rv = mean(media_rv), diff_rv = total_rv - .3,
+            total_fii = mean(media_fii), diff_fii = total_fii - .2,
+            total_fundos = mean(media_fundos), diff_fundos = total_fii - .1,
+            total_prev = mean(media_previdencia), diff_prev = total_prev - .1,
+            total_caixa = mean(media_caixa), diff_caixa = total_caixa - .15) %>%
+  ungroup() %>%
+  gt() %>%
+  tab_header(title = md("**Como os clientes se diferenciaram em relação a seu perfil.**"),
+             subtitle = "Subdividido pelas médias dos clientes de cada assessor.") %>%
+  tab_spanner(label = "Renda Fixa.",
+              columns = vars(total_rf,diff_rf)) %>%
+  tab_spanner(label = "Renda Variável.",
+              columns = vars(total_rv, diff_rv)) %>%
+  tab_spanner(label = "Fundos Imobiliários.",
+              columns = vars(total_fii, diff_fii)) %>%
+  tab_spanner(label = "Fundos.",
+              columns = vars(total_fundos, diff_fundos)) %>%
+  tab_spanner(label = "Previdência.",
+              columns = vars(total_prev, diff_prev)) %>%
+  tab_spanner(label = "Caixa.",
+              columns = vars(total_caixa, diff_caixa)) %>%
+  cols_label(Assessor = "Assessor.",
+             clientes = "Clientes.") %>%
+  cols_align(align = c("center"), columns = T) %>%
+  fmt_number(
+    columns = 3:14,
+    decimals = 3,
+    suffixing = TRUE
+  ) %>%
+  fmt_percent(
+    columns = 3:14
+  ) %>%
+  data_color(
+    columns = vars(diff_rv,diff_rf,diff_fii,diff_caixa,diff_prev,diff_fundos),
+    colors = pal
+    ) %>%
+   tab_footnote(footnote = "Sugestão de 15%.", 
+               locations = cells_column_labels(columns = vars(diff_rf))) %>%
+   tab_footnote(footnote = "Sugestão de 30%.", 
+               locations = cells_column_labels(columns = vars(diff_rv))) %>%
+   tab_footnote(footnote = "Sugestão de 20%.", 
+               locations = cells_column_labels(columns = vars(diff_fii))) %>%
+   tab_footnote(footnote = "Sugestão de 10%.", 
+               locations = cells_column_labels(columns = vars(diff_fundos))) %>%
+   tab_footnote(footnote = "Sugestão de 10%.", 
+               locations = cells_column_labels(columns = vars(diff_prev))) %>%
+   tab_footnote(footnote = "Sugestão de 15%.", 
+               locations = cells_column_labels(columns = vars(diff_caixa))) %>%
+  tab_source_note(source_note = md("**Feito por Juan Iturvide**.")) %>%
+  cols_label(
+    total_rf = "Média em Renda Fixa.",
+    diff_rf = "Diferença da Proposta.",
+    total_rv = "Média em Renda Variável.",
+    diff_rv = "Diferença da Proposta.",
+    total_fii = "Média em FII.",
+    diff_fii = "Diferença da Proposta.",
+    total_fundos = "Média em Fundos.",
+    diff_fundos = "Diferença da Proposta.",
+    total_prev = "Média em Previdência.",
+    diff_prev = "Diferença da Proposta.",
+    total_caixa = "Média em Caixa.",
+    diff_caixa = "Diferença da Proposta."
+  ) %>%
+  gt_theme_538()
+
+tabela
+```
+
+Distribuições e gráficos.
+===
+
+Inputs {.sidebar}
+---
+### Aqui podemos ver as porcentagens onde os investimentos se concentraram. Escolha um assessor:
+
+```{r}
+selectInput("Assessor", label = "Assessor",
+            choices = unique(medias_man$Assessor), selected = "A")
+```
+
+Rows {data-width=100}
+---
+
+### Renda Fixa.
+
+```{r}
+renderPlotly({
+dist_rf <- medias_man %>%
+  filter(Assessor == input$Assessor) %>%
+  ggplot() +
+  geom_density(mapping = aes(x = media_rf), color = "black", fill = "#35b0ab") +
+  geom_vline(xintercept = .15, linetype = "dashed", color = "red") +
+  labs(x="Net Total direcionado a Renda Fixa (em %).",
+       title = "Alocação de Renda Fixa.") +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(face = "bold")) +
+  xlim(-.5,1.5)
+ggplotly(dist_rf)})
+```
+
+### Renda Variável
+
+```{r}
+renderPlotly({
+dist_rv <- medias_man %>%
+  filter(Assessor == input$Assessor) %>%
+  ggplot() +
+  geom_density(mapping = aes(x = media_rv), color = "black", fill = "#93d3ab") +
+  geom_vline(xintercept = .3, linetype = "dashed", color = "red") +
+  labs(x="Net Total direcionado a Renda Variável (em %).",
+       title = "Alocação de Renda Variável.") +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(face = "bold")) +
+  xlim(-.5,1.5)
+ggplotly(dist_rv)})
+```
+
+### FII.
+
+```{r}
+renderPlotly({
+dist_fii <- medias_man %>%
+  filter(Assessor == input$Assessor) %>%
+  ggplot() +
+  geom_density(mapping = aes(x = media_fii), color = "black", fill = "#c9ecb4") +
+  geom_vline(xintercept = .2, linetype = "dashed", color = "red") +
+  labs(x="Net Total direcionado a FII (em %).",
+       title = "Alocação de FII.") +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(face = "bold")) +
+  xlim(-.5,1.5)
+ggplotly(dist_fii)})
+```
+
+Row {data-width=100}
+---
+
+### Fundos
+
+```{r}
+renderPlotly({
+dist_fund <- medias_man %>%
+  filter(Assessor == input$Assessor) %>%
+  ggplot() +
+  geom_density(mapping = aes(x = media_fundos), color = "black", fill = "#f2fbd2") +
+  geom_vline(xintercept = .2, linetype = "dashed", color = "red") +
+  labs(x="Net Total direcionado a Fundos (em %).",
+       title = "Alocação de Fundos.") +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(face = "bold")) +
+  xlim(-.5,1.5)
+ggplotly(dist_fund)})
+```
+
+### Previdência
+
+```{r}
+renderPlotly({
+dist_prev <- medias_man %>%
+  filter(Assessor == input$Assessor) %>%
+  ggplot() +
+  geom_density(mapping = aes(x = media_previdencia), color = "black", fill = "#d2e21bff") +
+  geom_vline(xintercept = .1, linetype = "dashed", color = "red") +
+  labs(x="Net Total direcionado a Previdência (em %).",
+       title = "Alocação de Previdência.") +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(face = "bold")) +
+  xlim(-.5,1.5)
+ggplotly(dist_prev)})
+```
+
+### Caixa
+
+```{r}
+renderPlotly({
+dist_caixa <- medias_man %>%
+  filter(Assessor == input$Assessor) %>%
+  ggplot() +
+  geom_density(mapping = aes(x = media_caixa), color = "black", fill = "#fde725ff") +
+  geom_vline(xintercept = .15, linetype = "dashed", color = "red") +
+  labs(x="Net Total direcionado a Caixa (em %).",
+       title = "Alocação de Caixa.") +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(face = "bold")) +
+  xlim(-.5,1.5)
+ggplotly(dist_caixa)})
+```
+
