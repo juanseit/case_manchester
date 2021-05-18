@@ -16,14 +16,28 @@ library(readxl)
 library(gt)
 library(shiny)
 library(plotly)
+library(DT)
+library(rsconnect)
 options(scipen = 9999)
-man_df <- read_xlsx("C:/Users/User/Downloads/Processo_Seletivo.xlsx")
+man_df <- read_xlsx("data/Processo_Seletivo.xlsx")
 medias_man <- man_df %>%
-  filter(!is.na(`Net Total`), !is.na(`Net Renda Fixa`)) %>%
+  filter(!is.na(`Net Total`), !is.na(`Net Renda Fixa`), !is.na(`Net Renda Variável`),
+         !is.na(`Net Fundos Imobiliários`), !is.na(`Net Fundos`), !is.na(`Net Previdência`), !is.na(`Net Caixa`)) %>%
   group_by(Assessor) %>%
   summarize(media_rf = `Net Renda Fixa`/`Net Total`, media_rv = `Net Renda Variável`/`Net Total`,
             media_fii = `Net Fundos Imobiliários`/ `Net Total`, media_fundos = `Net Fundos`/`Net Total`,
             media_previdencia = `Net Previdência`/`Net Total`, media_caixa = `Net Caixa`/`Net Total`) %>%
+  ungroup()
+
+clientes_df <- man_df %>%
+  filter(!is.na(`Net Total`), !is.na(`Net Renda Fixa`), !is.na(`Net Renda Variável`),
+         !is.na(`Net Fundos Imobiliários`), !is.na(`Net Fundos`), !is.na(`Net Previdência`), !is.na(`Net Caixa`)) %>%
+  group_by(Cliente, Assessor) %>%
+  summarize(media_cli_rf = round(`Net Renda Fixa`/`Net Total`,3), diff_cli_rf = media_cli_rf -.15, media_cli_rv = round(`Net Renda Variável`/`Net Total`,3),
+            diff_cli_rv = media_cli_rv - .3, media_cli_fii = round(`Net Fundos Imobiliários`/ `Net Total`,3), diff_cli_fii = media_cli_fii -.2, 
+            media_cli_fundos = round(`Net Fundos`/`Net Total`,3), diff_cli_fund = media_cli_fundos - .1,
+            media_cli_prev = round(`Net Previdência`/`Net Total`,3),diff_cli_prev = media_cli_prev - .1,
+            media_cli_caixa = round(`Net Caixa`/`Net Total`,3), diff_cli_caixa = media_cli_caixa - .15) %>%
   ungroup()
 
 pal <- function(x) {
@@ -75,6 +89,7 @@ gt_theme_538 <- function(data,...) {
       ...
     ) 
 }
+
 ```
 
 Relatório de dados.
@@ -162,10 +177,10 @@ Distribuições e gráficos.
 
 Inputs {.sidebar}
 ---
-### Aqui podemos ver as porcentagens onde os investimentos se concentraram. Escolha um assessor:
+### Aqui podemos ver as porcentagens onde os investimentos se concentraram.
 
 ```{r}
-selectInput("Assessor", label = "Assessor",
+selectInput("Assessor", label = "Escolha um assessor:",
             choices = unique(medias_man$Assessor), selected = "A")
 ```
 
@@ -287,5 +302,42 @@ dist_caixa <- medias_man %>%
         plot.title = element_text(face = "bold")) +
   xlim(-.5,1.5)
 ggplotly(dist_caixa)})
+```
+
+Dados dos clientes.
+===
+Rows {data-width=650}
+---
+
+### Como cada cliente investiu individualmente como proporção do Net Total. Digite o intervalo de números de seus clientes na respectiva coluna com 3 pontos entre eles (ex: 1 ... 40), ou a letra em "Assessor". Cores azuis representam uma aderência maior à proposta.
+
+
+```{r}
+renderDT(datatable(clientes_df,
+         rownames = FALSE,
+         filter="top",
+         colnames = c("Clientes","Assessor","Proporção em Renda Fixa", "Diferença do perfil - RF.","Proporção em Renda Variável","Diferença do perfil - RV",
+                      "Proporção em FII","Diferença do perfil - FII","Proporção em Fundos","Diferença do perfil - Fundos",
+                      "Proporção em Previdência","Diferença do perfil - Previdência","Proporção em Caixa", "Diferença do perfil - Caixa")) %>%
+  formatStyle(
+            'diff_cli_rf',
+            color = styleInterval(c(-.075,.075), c("#ff9e81","#3fc1c9","#ff9e81"))) %>%
+  formatStyle(
+            'diff_cli_rv',
+            color = styleInterval(c(-.15,.15), c("#ff9e81","#3fc1c9","#ff9e81"))) %>%
+  formatStyle(
+            'diff_cli_fii',
+            color = styleInterval(c(-.1,.1), c("#ff9e81","#3fc1c9","#ff9e81"))) %>%
+  formatStyle(
+            'diff_cli_fund',
+            color = styleInterval(c(-.15,.15), c("#ff9e81","#3fc1c9","#ff9e81"))) %>%
+  formatStyle(
+            'diff_cli_prev',
+            color = styleInterval(c(-.05,.05), c("#ff9e81","#3fc1c9","#ff9e81"))) %>%
+  formatStyle(
+            'diff_cli_caixa',
+            color = styleInterval(c(-.075,.075), c("#ff9e81","#3fc1c9","#ff9e81"))))
+          
+
 ```
 
